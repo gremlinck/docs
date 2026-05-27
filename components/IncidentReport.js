@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import SeverityBadge from './SeverityBadge';
 import ResponseStep from './ResponseStep';
+import ComplianceDocument from './ComplianceDocument';
 
 const SEVERITY_BORDER = {
   Critical: '#DC2626',
@@ -152,22 +153,7 @@ export default function IncidentReport({ report, mode = 'COPILOT', facilityProfi
         </div>
 
         {complianceResult && !complianceResult.error && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold" style={{ color: '#065F46' }}>
-                ✓ {complianceResult.templateName} — draft ready
-              </span>
-              <span className="text-xs" style={{ color: '#6B6860' }}>
-                Report to: {complianceResult.reportingAuthority} · Deadline: {complianceResult.deadline}
-              </span>
-            </div>
-            <pre
-              className="text-xs rounded p-3 overflow-auto font-mono"
-              style={{ background: '#F0FFF4', border: '1.5px solid #065F46', color: '#0F0E0C', maxHeight: '300px' }}
-            >
-              {JSON.stringify(complianceResult.complianceReport, null, 2)}
-            </pre>
-          </div>
+          <ComplianceDocument result={complianceResult} />
         )}
 
         {complianceResult?.error && (

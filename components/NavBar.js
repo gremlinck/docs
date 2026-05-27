@@ -21,6 +21,13 @@ export default function NavBar({ mode = 'COPILOT' }) {
       </Link>
       <div className="flex items-center gap-4">
         <Link
+          href="/incidents"
+          className="text-xs font-semibold transition-opacity hover:opacity-70"
+          style={{ color: 'rgba(255,255,255,0.6)' }}
+        >
+          Incidents
+        </Link>
+        <Link
           href="/profile"
           className="text-xs font-semibold transition-opacity hover:opacity-70"
           style={{ color: 'rgba(255,255,255,0.6)' }}

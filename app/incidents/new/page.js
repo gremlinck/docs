@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import IncidentReport from '@/components/IncidentReport';
 import CopilotPanel from '@/components/CopilotPanel';
+import { DEMO_SCENARIOS } from '@/lib/demo/scenarios';
+import { saveIncident } from '@/lib/storage/incidents';
 
 export default function NewIncidentPage() {
   const [view, setView] = useState('input');
@@ -45,6 +47,7 @@ export default function NewIncidentPage() {
 
       setReport(data.report);
       setEffectiveMode(data.mode);
+      saveIncident(data.report, data.mode);
       setView('report');
     } catch {
       setError('Unable to reach the Varo AI Analyst. Please check your connection and try again.');
@@ -85,6 +88,23 @@ export default function NewIncidentPage() {
                 {error}
               </div>
             )}
+
+            {/* Demo scenario quick-load buttons */}
+            <div className="flex gap-2 flex-wrap mb-3">
+              {DEMO_SCENARIOS.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setAlertText(s.alertText);
+                    setFacilityType(s.facilityType);
+                  }}
+                  className="px-3 py-1 rounded text-xs font-semibold transition-opacity hover:opacity-70"
+                  style={{ border: '1.5px solid #1A3FA8', color: '#1A3FA8', background: '#EFF6FF' }}
+                >
+                  {s.tag}: {s.label}
+                </button>
+              ))}
+            </div>
 
             <textarea
               value={alertText}
