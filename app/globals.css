@@ -20,3 +20,25 @@ body {
   color: var(--ink);
   font-family: 'Instrument Sans', sans-serif;
 }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes progress {
+  0%   { width: 0%; }
+  10%  { width: 15%; }
+  30%  { width: 42%; }
+  60%  { width: 66%; }
+  80%  { width: 79%; }
+  100% { width: 84%; }
+}
+
+.animate-fadeUp {
+  animation: fadeUp 0.4s cubic-bezier(.22,.68,0,1.2) forwards;
+}
+
+.progress-bar {
+  animation: progress 75s cubic-bezier(.15,.5,.45,1) forwards;
+}
