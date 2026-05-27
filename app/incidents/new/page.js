@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import IncidentReport from '@/components/IncidentReport';
 import CopilotPanel from '@/components/CopilotPanel';
@@ -13,6 +13,16 @@ export default function NewIncidentPage() {
   const [report, setReport] = useState(null);
   const [effectiveMode, setEffectiveMode] = useState('COPILOT');
   const [error, setError] = useState(null);
+  const [facilityProfile, setFacilityProfile] = useState(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('varoai_profile');
+    if (stored) {
+      const p = JSON.parse(stored);
+      setFacilityProfile(p);
+      if (p.facilityType) setFacilityType(p.facilityType);
+    }
+  }, []);
 
   const analyse = async () => {
     if (!alertText.trim()) return;
@@ -23,7 +33,7 @@ export default function NewIncidentPage() {
       const res = await fetch('/api/varo/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alertText, mode, facilityType }),
+        body: JSON.stringify({ alertText, mode, facilityType, facilityProfile }),
       });
       const data = await res.json();
 
@@ -192,7 +202,7 @@ export default function NewIncidentPage() {
               className="overflow-y-auto p-6 lg:p-8"
               style={{ borderRight: '1.5px solid #E4E0D8' }}
             >
-              <IncidentReport report={report} mode={effectiveMode} />
+              <IncidentReport report={report} mode={effectiveMode} facilityProfile={facilityProfile} />
             </div>
 
             {/* Right: engineer copilot */}

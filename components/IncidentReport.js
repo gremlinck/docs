@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import SeverityBadge from './SeverityBadge';
 import ResponseStep from './ResponseStep';
 
@@ -8,8 +11,35 @@ const SEVERITY_BORDER = {
   Low:      '#16A34A',
 };
 
-export default function IncidentReport({ report, mode = 'COPILOT' }) {
+const REGULATIONS = [
+  { value: 'CIRCIA', label: 'CIRCIA 72-hr Report' },
+  { value: 'NERC_CIP', label: 'NERC CIP-008 Report' },
+  { value: 'TSA_PIPELINE', label: 'TSA Pipeline Report' },
+];
+
+export default function IncidentReport({ report, mode = 'COPILOT', facilityProfile }) {
   const borderColor = SEVERITY_BORDER[report.severityLabel] || '#6B6860';
+  const [complianceLoading, setComplianceLoading] = useState(false);
+  const [complianceResult, setComplianceResult] = useState(null);
+  const [selectedReg, setSelectedReg] = useState('CIRCIA');
+
+  const generateCompliance = async () => {
+    setComplianceLoading(true);
+    setComplianceResult(null);
+    try {
+      const res = await fetch('/api/varo/compliance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incidentReport: report, regulation: selectedReg, facilityProfile }),
+      });
+      const data = await res.json();
+      setComplianceResult(data);
+    } catch {
+      setComplianceResult({ error: true, message: 'Failed to generate compliance report.' });
+    } finally {
+      setComplianceLoading(false);
+    }
+  };
 
   return (
     <div
@@ -88,6 +118,61 @@ export default function IncidentReport({ report, mode = 'COPILOT' }) {
             <ResponseStep key={i} step={step} index={i} />
           ))}
         </div>
+      </div>
+
+      {/* Compliance Report Generator */}
+      <div className="mx-6 mb-5 p-4 rounded-lg" style={{ background: '#FAFAF8', border: '1.5px solid #E4E0D8' }}>
+        <Label>Generate Compliance Report</Label>
+        <p className="text-xs mt-1 mb-3" style={{ color: '#6B6860' }}>
+          Draft a regulatory incident report — CIRCIA, NERC CIP-008, or TSA Pipeline.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          {REGULATIONS.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setSelectedReg(r.value)}
+              className="px-3 py-1.5 rounded text-xs font-semibold transition-all"
+              style={
+                selectedReg === r.value
+                  ? { background: '#1A3FA8', color: 'white' }
+                  : { border: '1.5px solid #E4E0D8', color: '#6B6860', background: 'white' }
+              }
+            >
+              {r.label}
+            </button>
+          ))}
+          <button
+            onClick={generateCompliance}
+            disabled={complianceLoading}
+            className="px-4 py-1.5 rounded text-xs font-semibold text-white transition-opacity disabled:opacity-40"
+            style={{ background: '#065F46' }}
+          >
+            {complianceLoading ? 'Generating...' : 'Generate Draft →'}
+          </button>
+        </div>
+
+        {complianceResult && !complianceResult.error && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold" style={{ color: '#065F46' }}>
+                ✓ {complianceResult.templateName} — draft ready
+              </span>
+              <span className="text-xs" style={{ color: '#6B6860' }}>
+                Report to: {complianceResult.reportingAuthority} · Deadline: {complianceResult.deadline}
+              </span>
+            </div>
+            <pre
+              className="text-xs rounded p-3 overflow-auto font-mono"
+              style={{ background: '#F0FFF4', border: '1.5px solid #065F46', color: '#0F0E0C', maxHeight: '300px' }}
+            >
+              {JSON.stringify(complianceResult.complianceReport, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {complianceResult?.error && (
+          <p className="mt-3 text-xs" style={{ color: '#DC2626' }}>{complianceResult.message}</p>
+        )}
       </div>
 
       {/* Confidence reason */}

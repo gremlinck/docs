@@ -4,9 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Varo AI is a **Cyber-Physical Consequence Intelligence** platform for OT/ICS cybersecurity. It translates raw OT security alerts (Modbus, DNP3, IEC 61850, OPC-UA, etc.) into plain-language operational consequence reports with actionable response steps. Target users are OT security analysts, control/SCADA engineers, and CISOs at energy, manufacturing, water, and oil & gas facilities.
+**Varo AI** (by Encyber) is a **Cyber-Physical Consequence Intelligence** platform for OT/ICS cybersecurity. Positioned as the "Bloomberg Terminal for OT Security" — Claude-powered, OT-grounded, citation-rich advisory for engineers and CISOs at sub-$5K/seat.
 
-**Status:** Early-stage MVP. The repository currently contains comprehensive documentation and a `package.json` (mislabeled as `app/api/varo/analyze/route.js`) — application code is yet to be written.
+**Core value proposition:** Non-experts can act confidently. AI interprets industrial context. Instant analysis, guided response.
+
+**Deployment:** Cloud SaaS (Firebase) and on-premise (Docker, no cloud dependency).
+
+**Product stage:** Working MVP — alert triage, Engineer Copilot, compliance report drafting, and agentic alert ingestion via webhook.
 
 ## Dev Commands
 
@@ -21,18 +25,23 @@ npm run build && firebase deploy --only hosting
 firebase deploy --only firestore:rules   # Deploy Firestore security rules only
 ```
 
-No automated test suite exists. Testing is manual via the three demo scenarios in `varoai_build_package_v2/varoai_docs/system_prompt.md` (Modbus PLC, Historian exfiltration, HMI brute-force). Run all three after any AI prompt or output parsing change.
+No automated test suite. Testing is manual via the three demo scenarios in `varoai_build_package_v2/varoai_docs/system_prompt.md` (Modbus PLC, Historian exfiltration, HMI brute-force). Run all three after any AI prompt or output parsing change.
+
+```bash
+# On-premise deployment
+docker compose up --build
+```
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 14 + React 18 + TypeScript + Tailwind CSS |
-| Auth / DB / Hosting | Firebase (Google SSO, Firestore, Firebase Hosting) |
-| AI Engine | Gemini 2.0 Flash (MVP); `@anthropic-ai/sdk` is already in `package.json` — Claude swap is planned at Month 3 |
-| Deployment target | `varoai.app` (Firebase Hosting) |
+| AI Engine | **Claude** (default via `@anthropic-ai/sdk`) — switch via `AI_PROVIDER` env var |
+| Auth / DB / Hosting | Firebase (cloud) or Docker + local volume (on-prem) |
+| Deployment | `varoai.app` (Firebase Hosting) or `docker compose up` (on-prem) |
 
-The AI engine swap from Gemini to Claude is designed to be a single-function change inside `callVaroAnalyst()`. Do not scatter AI provider logic across multiple files.
+All AI calls go through `lib/ai/index.js` → `callVaroAnalyst()`. Switching AI_PROVIDER env var between `claude` and `gemini` is the only change needed.
 
 ## Architecture
 
@@ -42,13 +51,38 @@ Next.js App Router: `/app/api/[feature]/[action]/route.js`
 
 ### AI Call Pattern
 
-All AI calls go through a single wrapper:
-
 ```js
-const callVaroAnalyst = async (systemPrompt, userMessage, temperature = 0.2) => { ... }
+import { callVaroAnalyst } from '@/lib/ai/index.js';
+// provider resolved from AI_PROVIDER env var — never call provider SDKs directly in routes
 ```
 
-This is the **only function that changes** when swapping Gemini → Claude. It enforces `responseMimeType: 'application/json'` at the API level to guarantee JSON output. See `architecture.md` for the exact function body.
+Knowledge grounding is injected via `lib/knowledge/index.js → buildKnowledgeContext()`.  
+Facility context is injected via `lib/profile/schema.js → buildProfileContext()`.
+
+### Key Library Paths
+
+```
+lib/
+  ai/
+    index.js              ← single entry point for all AI calls
+    providers/claude.js   ← Anthropic SDK (default)
+    providers/gemini.js   ← Gemini fallback
+  knowledge/
+    index.js              ← buildKnowledgeContext()
+    corpus/               ← MITRE ICS, NERC CIP, CIRCIA, OT protocols
+  profile/
+    schema.js             ← plant profile shape + buildProfileContext()
+```
+
+### API Modules
+
+| Route | Purpose |
+|---|---|
+| `POST /api/varo/analyze` | Core: alert → 12-field incident report |
+| `POST /api/varo/copilot` | Engineer Copilot chat with incident context |
+| `POST /api/varo/compliance` | Compliance doc generator (CIRCIA/NERC CIP/TSA) |
+| `POST /api/ingest/webhook` | Agentic: receive alerts from Dragos/Claroty/Nozomi |
+| `GET  /api/ingest/webhook?id=` | Poll for auto-analysed alert result |
 
 ### Firestore Collections
 
@@ -138,10 +172,16 @@ Severity colours are non-negotiable — do not substitute or approximate them.
 
 ## Environment Variables
 
-Required in `.env.local` — never commit these:
+Required in `.env.local` — never commit these. See `.env.local.example`.
 
 ```
-GEMINI_API_KEY
+AI_PROVIDER=claude              # 'claude' (default) or 'gemini'
+ANTHROPIC_API_KEY=              # from console.anthropic.com
+GEMINI_API_KEY=                 # only if AI_PROVIDER=gemini
+DEPLOYMENT=cloud                # 'cloud' (Firebase) or 'onprem' (Docker)
+WEBHOOK_SECRET=                 # optional — validates /api/ingest/webhook calls
+
+# Firebase (cloud only)
 NEXT_PUBLIC_FIREBASE_API_KEY
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 NEXT_PUBLIC_FIREBASE_PROJECT_ID

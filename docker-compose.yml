@@ -1,0 +1,17 @@
+services:
+  varo-ai:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DEPLOYMENT=onprem
+      - AI_PROVIDER=${AI_PROVIDER:-claude}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - varo-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  varo-data:

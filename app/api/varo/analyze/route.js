@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import { callVaroAnalyst } from '@/lib/ai/index.js';
+import { buildKnowledgeContext } from '@/lib/knowledge/index.js';
+import { buildProfileContext } from '@/lib/profile/schema.js';
 
 const SYSTEM_PROMPT = `You are the Varo AI Analyst performing OT security incident analysis.
 
@@ -38,11 +41,11 @@ with exactly these fields:
 RULES:
 - Return valid JSON only. No markdown. No explanation outside the JSON.
 - Never recommend actions that could cause physical harm.
-- SAFETY OVERRIDE: Flag any step with physical process risk with [SAFETY CHECK REQUIRED]. Do not include it in AUTOPILOT execution.
-- If protocol cannot be identified, say so clearly in protocolContext.
+- SAFETY OVERRIDE: Flag any step with physical process risk with [SAFETY CHECK REQUIRED].
 - Financial exposure must always be a range, never a single number.
-- MITRE IDs must be real ATT&CK for ICS technique IDs only.
+- MITRE IDs must be real ATT&CK for ICS technique IDs only — cite from the grounding knowledge.
 - Always state confidence level (High/Medium/Low) and a one-sentence reason.
+- Cite applicable NERC CIP, CIRCIA, or TSA requirements in escalationRecommendation where relevant.
 - Speak in operational language — equipment, processes, consequences. Never pure IT jargon.`;
 
 const REQUIRED_FIELDS = [
@@ -86,9 +89,7 @@ function parseAIResponse(raw) {
 
 function validateReport(report) {
   for (const field of REQUIRED_FIELDS) {
-    if (report[field] == null) {
-      return { valid: false, reason: `Missing field: ${field}` };
-    }
+    if (report[field] == null) return { valid: false, reason: `Missing field: ${field}` };
   }
   const score = report.severityScore;
   if (typeof score !== 'number' || score < 1 || score > 10) {
@@ -105,39 +106,16 @@ function isSafeForAutopilot(report) {
   return !AUTOPILOT_EXCLUDED_CATEGORIES.some((cat) => text.includes(cat.replace(/_/g, ' ')));
 }
 
-async function callVaroAnalyst(userMessage, temperature = 0.2) {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\n${userMessage}` }] }],
-        generationConfig: { temperature, maxOutputTokens: 2048, responseMimeType: 'application/json' },
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Gemini API responded with ${res.status}`);
-  }
-
-  const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new Error('Empty response from Gemini API');
-  return raw;
-}
-
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { alertText, mode = 'COPILOT', facilityType = 'energy' } = body;
+    const { alertText, mode = 'COPILOT', facilityType = 'energy', facilityProfile } = body;
 
     if (!alertText || typeof alertText !== 'string' || alertText.trim().length === 0) {
       return NextResponse.json({ error: true, message: 'Alert text is required.' }, { status: 400 });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         { error: true, message: 'API key not configured. Please contact support.' },
         { status: 500 }
@@ -145,9 +123,13 @@ export async function POST(request) {
     }
 
     const sanitised = sanitiseAlert(alertText);
+    const knowledgeContext = buildKnowledgeContext({ includeCompliance: true });
+    const profileContext = facilityProfile ? buildProfileContext(facilityProfile) : '';
+
+    const systemPrompt = SYSTEM_PROMPT + knowledgeContext + (profileContext ? `\n\n${profileContext}` : '');
     const userMessage = `<alert_content>\n${sanitised}\n</alert_content>\n\nOperating mode: ${mode}\nFacility type: ${facilityType}`;
 
-    const raw = await callVaroAnalyst(userMessage, 0.2);
+    const raw = await callVaroAnalyst(systemPrompt, userMessage, { temperature: 0.2, maxTokens: 2048 });
     const report = parseAIResponse(raw);
 
     if (!report) {
@@ -166,7 +148,6 @@ export async function POST(request) {
       );
     }
 
-    // Enforce COPILOT for high severity, low confidence, or excluded categories
     const effectiveMode =
       report.severityScore >= 8 ||
       report.confidenceLevel === 'Low' ||
