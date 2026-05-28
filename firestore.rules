@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /incidents/{incidentId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if false;
+    }
+
+    match /conversations/{convId} {
+      allow read, write: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+    }
+
+    match /simulations/{simId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create, update: if isAuthenticated();
+      allow delete: if false;
+    }
+
+    // Immutable audit trail — write only, no delete, no update
+    match /auditLog/{logId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+  }
+}
