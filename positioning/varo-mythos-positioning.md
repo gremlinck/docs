@@ -1,100 +1,194 @@
-# Varo AI — Dual-Audience Positioning
-**Internal working title: Varo Mythos**
-**Version:** 0.1 | **Date:** May 2026 | **Classification:** Internal / Design Partners
+# Varo AI — Positioning
+**Varo Mythos v0.2 | May 2026 | Internal / Design Partners**
 
 ---
 
-## For investors
+## Slide 1 — Title
 
-### The one-line pitch
+**Varo AI**
+*Alert-to-decision in 90 seconds for the systems that can't be patched on a Tuesday.*
 
-Varo AI is the first AI analyst purpose-built for operational technology security — translating raw industrial control system alerts into plain-language consequence reports, with step-by-step response guidance, in under 90 seconds.
+---
 
-### The market gap
+## Slide 2 — The one-line pitch
 
-Every energy plant, water utility, and manufacturer now runs on networked control systems. Every one of them receives OT security alerts they cannot interpret fast enough to act on.
+> Varo AI is the first AI analyst purpose-built for operational technology security — translating raw ICS alerts into plain-language consequence reports with step-by-step response guidance, in under 90 seconds.
 
-The people who receive these alerts — OT security analysts, control engineers — are not IT security professionals. They speak in RPM setpoints and valve positions, not CVEs and MITRE techniques. Every existing security tool is built for IT. None of them speak OT.
+---
 
-The consequence of a missed OT alert is not a data breach. It is a turbine running at 3,400 RPM when the safe limit is 1,200. It is a pressure relief valve that doesn't trip. It is a $2.3M-per-hour production outage — or worse.
+## Slide 3 — The Mythos analogy (investor frame)
 
-### The Mythos analogy
+Anthropic's Mythos collapses alert-to-exploit time for IT software.
+It takes a raw vulnerability signal and chains AI reasoning to produce a working exploit path.
 
-Anthropic's Mythos collapses alert-to-exploit time for IT software: it takes a raw vulnerability signal and chains reasoning to produce a working exploit path.
+**Varo AI does the same thing — for defenders, on physical infrastructure.**
 
-Varo AI does the same thing for operational technology — but the output is not an exploit. It is a decision. A consequence report. A ranked list of response steps that a control engineer can act on without calling the IT security team.
+| | Mythos | Varo AI |
+|---|---|---|
+| Input | CVE / vulnerability signal | OT security alert (Modbus, DNP3, OPC-UA…) |
+| Chain | Exploit path reasoning | Consequence + response reasoning |
+| Output | Working exploit | Decision a control engineer can act on |
+| User | Red team / attacker | OT security analyst / control engineer |
+| Stakes | Data breach | Turbine damage, production outage, safety event |
 
-**Mythos is for attackers. Varo AI is for defenders who protect physical infrastructure.**
+---
 
-### Why now
+## Slide 4 — The problem
+
+Every energy plant, water utility, and manufacturer now runs on networked control systems.
+Every one of them receives OT security alerts they cannot interpret fast enough to act on.
+
+**The gap:**
+- OT security tools generate alerts in protocol language (Modbus FC06, DNP3 unsolicited response, OPC-UA bulk read)
+- The people who receive them — control engineers, OT analysts — are not trained to read IT security output
+- Existing SIEMs and SOAR tools are built for IT. None of them understand what a 3,400 RPM motor speed setpoint write *means* for a turbine
+
+**The consequence of a missed alert is not a data breach. It is:**
+- A turbine running at 183% of its safe speed limit
+- A pressure relief valve that doesn't trip
+- A $2.3M/hour production outage — or worse, a safety event
+
+---
+
+## Slide 5 — Why now
 
 Three forces converging in 2025–2026:
 
-1. **OT/IT convergence** — Legacy air-gapped control systems are now network-connected. The attack surface exploded; the defensive tooling did not keep up.
-2. **AI reasoning capability** — LLMs can now reliably chain industrial protocol knowledge, MITRE ATT&CK for ICS, and consequence modelling into a single output. This was not possible 18 months ago.
-3. **Regulatory pressure** — NERC CIP, NIS2, and IEC 62443 are mandating documented incident response for critical infrastructure. Buyers need auditable AI-assisted workflows, not human-only processes that don't scale.
+**1. OT/IT convergence** — Legacy air-gapped control systems are now network-connected. Attack surface exploded; defensive tooling did not keep up.
 
-### Traction and target
+**2. AI reasoning capability** — LLMs can now reliably chain industrial protocol knowledge, MITRE ATT&CK for ICS, and consequence modelling into a single auditable output. This was not possible 18 months ago.
 
-**First target:** Energy sector OT security teams at utilities with 50–500 employees in the security function. They have budget, regulatory mandates, and the most to lose.
-
-**Design partners:** NextEra Energy (pending), Lighthouse Virginia portfolio companies.
-
-**Demo scenario:** Modbus Function Code 06 anomaly on a turbine PLC — report generated in 47 seconds, MITRE technique correctly identified (T0831 — Manipulation of Control), financial exposure calculated at $1.4M–$4.6M, three response steps produced with COPILOT approval workflow.
-
-### Business model
-
-SaaS, per-facility pricing. $X/month per monitored facility (pricing TBD with first design partner). Enterprise on-premise deployment at Month 4+.
+**3. Regulatory mandate** — NERC CIP, NIS2, and IEC 62443 are requiring documented, auditable incident response for critical infrastructure. Buyers need AI-assisted workflows with immutable audit trails.
 
 ---
 
-## For CISOs and security buyers
+## Slide 6 — The A.G.E.N.T. Loop™
 
-### What Varo AI does
+Varo AI's reasoning chain — five sequential AI agents, each producing typed output that feeds the next:
 
-Varo AI is an AI-powered incident intelligence layer for OT/ICS environments. It sits between your existing OT monitoring tools (Dragos, Nozomi, Claroty) and your security operations team.
+```
+[A] Assess    Protocol identification + anomaly classification
+      ↓
+[G] Generate  Attack scenario + MITRE ATT&CK for ICS technique
+      ↓
+[E] Evaluate  Operational impact + financial exposure range
+      ↓
+[N] Navigate  Ranked response steps + safety gate (hardcoded)
+      ↓
+[T] Translate 12-field plain-language consequence report
+```
 
-**Input:** Raw alert text, CSV/JSON export from your OT monitoring tool, or a structured form.
+**Why a chain, not a single prompt?**
+Each step is independently auditable, retryable, and safety-checkable.
+The [N] Navigate safety gate is enforced at the application layer — not in the prompt — so it cannot be bypassed by prompt injection or user settings.
 
-**Output:** A structured consequence report in under 90 seconds, containing:
-- Plain-language summary of what happened and why it matters for your process
-- Protocol context (what the anomaly means in Modbus / DNP3 / OPC-UA / IEC 61850 terms)
-- Most likely attack scenario with verified MITRE ATT&CK for ICS technique ID
-- List of affected assets
-- Operational impact: which equipment, which process, what fails, and in what timeframe
-- Financial exposure range
-- Severity score (1–10) with confidence level and reason
-- Three to five ranked response steps
-- Escalation recommendation
+**Built on:** Google ADK + A2A protocol | Gemini 2.0 Flash (swap to Claude at Month 3)
 
-### Operating modes
+---
 
-**COPILOT (default):** Every AI recommendation requires explicit analyst approval before any action is recorded. The AI cannot act autonomously. Engineers approve, modify, or skip each response step individually. All actions are logged to an immutable audit trail.
+## Slide 7 — Product demo flow
 
-**AUTOPILOT (opt-in):** Executes pre-approved playbooks automatically for defined low-risk alert categories. **Hardcoded override:** any alert that may affect physical processes, safety systems, or assets tagged as turbine governors, emergency shutdown systems, or SIS automatically reverts to COPILOT — this cannot be overridden by user settings or API flags.
+**Input:** Paste any OT alert or select a preloaded demo scenario
 
-### Data handling
+**Processing (< 90 seconds):**
+→ [A] Identifies Modbus FC06 — Unauthorised Write
+→ [G] Maps to MITRE T0831 — Manipulation of Control
+→ [E] Calculates $1.4M–$4.6M exposure at $2.3M/hr energy sector rate
+→ [N] Generates 3 response steps, applies safety gate (severity 9 — COPILOT locked)
+→ [T] Produces 12-field report in plain language
+
+**Output:** Structured consequence report with COPILOT APPROVE / MODIFY / SKIP on each step + Engineer Copilot chat
+
+---
+
+## Slide 8 — COPILOT vs AUTOPILOT
+
+**COPILOT (default, all users):**
+AI recommends. Engineer approves every response step individually.
+Every action is logged to an immutable audit trail.
+
+**AUTOPILOT (opt-in, low-risk categories only):**
+Executes pre-approved playbooks automatically for defined alert types.
+
+**Hardcoded safety override — cannot be disabled:**
+Any alert flagged as physical-process-impacting, safety-system-adjacent, or severity ≥ 8 is automatically locked to COPILOT — regardless of user mode, API flags, or prompt instructions.
+
+This is enforced at the **application layer** (`forcesCopilot()`), not in the prompt.
+
+---
+
+## Slide 9 — Traction and target
+
+**First target:** Energy sector OT security teams at utilities with 50–500 employees in the security function.
+They have budget, regulatory mandates, and the most to lose.
+
+**Demo scenarios (all produce verifiable reports):**
+- Modbus FC06 unauthorised write — turbine motor speed at 183% safe limit
+- OPC-UA bulk historian read — 847 tags in 4.2 seconds (baseline: 12/min) → attacker reconnaissance
+- HMI brute force on turbine governor — 14 attempts, credential enumeration pattern
+
+**Design partners:** NextEra Energy (in conversation), Lighthouse Virginia portfolio.
+
+---
+
+## Slide 10 — Business model
+
+| | Detail |
+|---|---|
+| Model | SaaS, per-facility pricing |
+| Phase 1 | Design partner pricing (NextEra pilot) |
+| Phase 2 | $X/month per monitored facility (TBD with first partner) |
+| Enterprise | On-premise deployment — Phase 4 |
+| Competitive moat | OT domain knowledge baked into the A.G.E.N.T. Loop™ prompts; MITRE ATT&CK for ICS validation; immutable audit trail for NERC CIP evidence |
+
+---
+
+## Slide 11 — Roadmap
+
+| Phase | Timeline | Key deliverables |
+|---|---|---|
+| Phase 1 — Demo | Complete | Alert input → AI report → COPILOT workflow → Engineer Copilot chat |
+| Phase 2 — Alpha | Month 1–2 | Firebase Auth, Firestore persistence, ADK multi-agent chain, file upload |
+| Phase 3 — Beta | Month 3 | Claude swap, live Dragos/Nozomi API, PDF export, NERC CIP compliance report |
+| Phase 4 — v1.0 | Month 4–6 | Enterprise on-premise, multi-tenant, full AUTOPILOT playbook library |
+
+**AI engine swap:** Gemini → Claude is a single-function change in `lib/ai.ts`. The A.G.E.N.T. Loop™ is provider-agnostic.
+
+---
+
+## Slide 12 — For CISOs: data handling
 
 | Question | Answer |
 |---|---|
-| Where is data stored? | Google Cloud Firebase, US Central (nam5) by default. Any GCP region on request. |
+| Where is data stored? | Google Cloud Firebase, US Central by default. Any GCP region on request. |
 | Is OT alert data used to train AI? | No. Never, without explicit written consent. |
-| Who at Varo AI can see our alerts? | No one without break-glass procedure: two-person auth + immediate customer notification. |
-| What happens if we cancel? | All data deleted within 30 days. Full export provided on request. |
-| NERC CIP? | Supports CIP-007, CIP-008, CIP-010. Audit log is direct CIP evidence. SOC 2 Type II on Year 2 roadmap. |
-
-### What Varo AI is not
-
-- Not a replacement for Dragos, Nozomi, or Claroty — it is an intelligence layer on top of them.
-- Not a SIEM or SOAR — it does not ingest raw network traffic or execute automated remediations at the network layer.
-- Not a compliance tool — it supports your compliance programme; it does not replace it.
-- Not able to access your PLCs, HMIs, or any OT assets directly.
-
-### Security questions NextEra will ask
-
-See [`SECURITY_PRIVACY.md`](../varoai_build_package_v2/varoai_docs/SECURITY_PRIVACY.md) Part 8 for the full Q&A, including data residency, NERC CIP alignment, and breach notification procedure.
+| Who at Varo AI sees our alerts? | No one. Break-glass procedure requires two-person auth + immediate customer notification. |
+| What if we cancel? | All data deleted within 30 days. Full export on request. |
+| NERC CIP compliance? | Supports CIP-007, CIP-008, CIP-010. Immutable audit log is direct CIP evidence. |
+| SOC 2? | Year 2 roadmap. |
 
 ---
 
-*Internal use only. Do not distribute without Hi Kim's approval.*
-*Owner: Hi Kim, CEO — Varo AI*
+## Slide 13 — What Varo AI is not
+
+- Not a Dragos / Nozomi / Claroty replacement — it is an intelligence layer *on top of* them
+- Not a SIEM or SOAR — no raw traffic ingestion, no network-layer automated remediation
+- Not a compliance tool — supports your programme, does not replace it
+- Not able to access PLCs, HMIs, or OT assets directly — read-only consequence intelligence
+
+---
+
+## Naming note
+
+"Varo Mythos" is the internal working title for this development phase — it signals the lineage to Anthropic's April 2026 Mythos announcement and frames the investor narrative.
+
+**Do not use "Mythos" publicly.**
+
+External names:
+- Product: **Varo AI**
+- Framework: **A.G.E.N.T. Loop™**
+- Narrative hook (in conversation only): "We're doing for OT defenders what Mythos does for attackers."
+
+---
+
+*Owner: Hi Kim, CEO — Varo AI | Internal / Design Partners only*

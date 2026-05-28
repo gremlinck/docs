@@ -1,39 +1,38 @@
 # Varo AI — Architecture
-**Varo Mythos internal spec**
-**Version:** 0.1 | **Date:** May 2026
+**Varo Mythos internal spec | v0.2 | May 2026**
 
-Chain-aware reasoning layer for OT/ICS security, built on Google ADK + A2A and structured around the A.G.E.N.T. Loop™.
+Chain-aware reasoning pipeline for OT/ICS security, built on Google ADK + A2A and structured around the A.G.E.N.T. Loop™.
 
 ---
 
 ## Section 1 — Overview
 
-Varo AI is a multi-agent reasoning system that processes OT security alerts through a structured consequence-analysis chain. Unlike a single-prompt LLM call, the A.G.E.N.T. Loop™ decomposes the analysis into discrete, auditable steps — each producing a typed output that feeds the next agent.
+Varo AI is a multi-agent reasoning system that processes OT security alerts through a five-step consequence-analysis chain. Unlike a single-prompt LLM call, the A.G.E.N.T. Loop™ decomposes analysis into discrete, auditable steps — each producing a typed output that feeds the next agent.
 
 ```
 Raw OT Alert
      │
      ▼
-[A] Assess        — Protocol identification + anomaly classification
-     │
+[A] Assess        Protocol identification + anomaly classification
+     │               → { protocol, anomalyType, protocolContext, confidence }
      ▼
-[G] Generate      — Attack scenario construction (MITRE ATT&CK for ICS)
-     │
+[G] Generate      Attack scenario + MITRE ATT&CK for ICS
+     │               → { attackScenario, mitreId, mitreTechnique, affectedAssets }
      ▼
-[E] Evaluate      — Consequence modelling (operational + financial impact)
-     │
+[E] Evaluate      Consequence modelling (operational + financial)
+     │               → { operationalImpact, financialExposure, severityScore }
      ▼
-[N] Navigate      — Response step generation + escalation routing
-     │
+[N] Navigate      Response steps + hardcoded safety gate
+     │               → { responseSteps[], escalationRecommendation, safetyGateTriggered }
      ▼
-[T] Translate     — Plain-language output for the target audience (analyst / engineer / CISO)
-     │
+[T] Translate     Final 12-field plain-language IncidentReport
+     │               → IncidentReport (validated JSON)
      ▼
-Structured Incident Report (12 fields, validated JSON)
+Structured Incident Report — displayed in the Next.js UI
 ```
 
 **Why a chain, not a single prompt?**
-Each step can be independently audited, retried, and — crucially — safety-checked. The [N] Navigate step has a hardcoded safety gate that blocks any response step affecting physical processes from reaching AUTOPILOT execution. A single monolithic prompt cannot enforce this at the application layer.
+Each step is independently auditable, retryable, and safety-checkable. The [N] Navigate agent applies `forcesCopilot()` at the application layer — not in the prompt — so it cannot be overridden by prompt injection, user mode settings, or API flags.
 
 ---
 
@@ -46,41 +45,88 @@ Each step can be independently audited, retried, and — crucially — safety-ch
 │           Tailwind CSS — Varo AI design system           │
 │           Firebase Hosting — varoai.app                  │
 └──────────────────────────┬──────────────────────────────┘
-                           │
+                           │  REST (JSON)
 ┌──────────────────────────▼──────────────────────────────┐
-│                   AGENT ORCHESTRATION                     │
+│               AGENT BACKEND (Python)                     │
+│          FastAPI — /tasks/analyze, /tasks/copilot        │
 │          Google Agent Development Kit (ADK)              │
-│          Agent-to-Agent (A2A) protocol                   │
-│          A.G.E.N.T. Loop™ — 5-step reasoning chain      │
+│          A2A agent registry at /.well-known/agent.json   │
+│          A.G.E.N.T. Loop™ — 5-step pipeline             │
 └──────────────────────────┬──────────────────────────────┘
-                           │
+                           │  google-genai SDK
 ┌──────────────────────────▼──────────────────────────────┐
 │                      AI ENGINE                           │
-│    Gemini 2.0 Flash (MVP) → Claude swap at Month 3       │
-│    Single callVaroAnalyst() wrapper in lib/ai.ts         │
+│    Gemini 2.0 Flash (Phase 1–2)                         │
+│    Claude swap at Month 3 — change callVaroAnalyst() only│
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
-│                      FIREBASE                            │
+│                      FIREBASE (Phase 2)                  │
 │    Auth (Google SSO)  │  Firestore  │  Hosting           │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**AI engine swap note:** `lib/ai.ts` exports a single `callVaroAnalyst(prompt, temperature)` function. Migrating from Gemini to Claude requires changing only this function — no other file references the AI provider. The function signature and return type are provider-agnostic.
+**Phase routing in the Next.js API layer:**
+```typescript
+// app/api/varo/analyze/route.ts
+if (process.env.AGENT_BACKEND_URL) {
+  // Phase 2 — calls Python A.G.E.N.T. Loop™
+  report = await callAgentLoop(alertText, facilityType, mode)
+} else {
+  // Phase 1 fallback — direct Gemini call
+  report = await callVaroAnalyst(prompt, 0.2)
+}
+```
 
 ---
 
 ## Section 3 — Agent definitions
 
-| Agent | Step | Temperature | SLA | Output type |
-|---|---|---|---|---|
-| Protocol Assessor | [A] Assess | 0.1 | < 5 s | `{ protocol, anomalyType, confidence }` |
-| Scenario Generator | [G] Generate | 0.2 | < 15 s | `{ attackScenario, mitreId, mitreTechnique }` |
-| Consequence Evaluator | [E] Evaluate | 0.2 | < 20 s | `{ operationalImpact, financialExposure, severityScore }` |
-| Response Navigator | [N] Navigate | 0.2 | < 20 s | `{ responseSteps[], escalationRecommendation }` |
-| Language Translator | [T] Translate | 0.3 | < 10 s | Full 12-field `IncidentReport` JSON |
+Each agent in `agent-backend/agents/` is a class with:
+- `name`, `description`, `step_label` — used in the A2A agent card
+- `temperature` — tuned per task type
+- `build_prompt(context)` — constructs the prompt from accumulated state
+- `run(context)` — calls Gemini, parses JSON, returns typed result
 
-*Phase 1 MVP collapses all five steps into a single Gemini call. The ADK/A2A multi-agent chain is the Phase 2 architecture target.*
+```python
+# agent-backend/agents/base.py
+class Agent(ABC):
+    name: str
+    description: str
+    step_label: str
+    temperature: float = 0.2
+
+    @property
+    def agent_card(self) -> dict:
+        return {
+            'name': self.name,
+            'description': self.description,
+            'step': self.step_label,
+            'model': 'gemini-2.0-flash',
+            'inputSchema': 'AgentContext',
+            'outputSchema': self.output_schema,
+        }
+
+    def run(self, context: dict) -> dict:
+        client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=self.build_prompt(context),
+            config=GenerateContentConfig(
+                response_mime_type='application/json',
+                temperature=self.temperature,
+            ),
+        )
+        return json.loads(response.text)
+```
+
+| Agent | Step | File | Temperature | Output fields |
+|---|---|---|---|---|
+| ProtocolAssessor | [A] | `assessor.py` | 0.1 | `protocol, anomalyType, protocolContext, confidence` |
+| ScenarioGenerator | [G] | `generator.py` | 0.2 | `attackScenario, mitreId, mitreTechnique, affectedAssets` |
+| ConsequenceEvaluator | [E] | `evaluator.py` | 0.2 | `operationalImpact, financialExposure, severityScore` |
+| ResponseNavigator | [N] | `navigator.py` | 0.2 | `responseSteps[], escalationRecommendation, safetyGateTriggered` |
+| LanguageTranslator | [T] | `translator.py` | 0.3 | Full 12-field `IncidentReport` |
 
 ---
 
@@ -92,74 +138,93 @@ See [`architecture.md §3`](../varoai_build_package_v2/varoai_docs/architecture.
 
 ## Section 5 — Safety gate specification
 
-The [N] Navigate agent applies `forcesCopilot()` before emitting any response step. This is enforced at the application layer, not only in the prompt.
+The [N] ResponseNavigator applies `forcesCopilot()` before returning. This is enforced at the application layer, not in the prompt.
 
-```typescript
-// lib/security.ts
-export function forcesCopilot(report: IncidentReport): boolean {
-  return (
-    report.severityScore >= 8 ||
-    report.mitreTechnique?.toLowerCase().includes('safety') ||
-    detectPhysicalImpact(report)   // checks operationalImpact text + asset names
-  )
-}
+```python
+# agent-backend/security/sanitise.py
+def forces_copilot(report: dict) -> bool:
+    return (
+        report.get('severityScore', 0) >= 8
+        or 'safety' in (report.get('mitreTechnique') or '').lower()
+        or _detect_physical_impact(report)
+    )
+
+def _detect_physical_impact(report: dict) -> bool:
+    impact = (report.get('operationalImpact') or '').lower()
+    physical_keywords = [
+        'physical', 'equipment damage', 'emergency shutdown',
+        'personnel', 'safety system', 'explosion', 'fire',
+    ]
+    safety_assets = ['sis', 'esd', 'safety', 'turbine', 'governor']
+    has_risky_asset = any(
+        any(k in a.lower() for k in safety_assets)
+        for a in (report.get('affectedAssets') or [])
+    )
+    return any(k in impact for k in physical_keywords) or has_risky_asset
 ```
 
-If `forcesCopilot()` returns `true`, the AUTOPILOT execution path is blocked and a safety override banner is displayed. This cannot be disabled by user settings, API flags, or prompt instructions.
+When triggered: the frontend displays the safety override banner and all APPROVE / MODIFY / SKIP buttons remain active — AUTOPILOT execution is blocked.
 
 ---
 
 ## Section 6 — AI call pattern
 
-All AI calls go through the single wrapper in `lib/ai.ts`. This is the only function that changes when swapping AI providers.
-
-```typescript
-// lib/ai.ts — current implementation (Gemini 2.0 Flash)
-export async function callVaroAnalyst(
-  fullPrompt: string,
-  temperature = 0.2
-): Promise<unknown> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        generationConfig: {
-          temperature,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-        },
-      }),
-    }
-  )
-  // ... parse and return
-}
-```
+All AI calls in the agent backend flow through `agent-backend/agents/base.py`.
+All AI calls in the Next.js layer flow through `lib/ai.ts`.
+These are the two swap points for the Gemini → Claude migration.
 
 **Data flow for security review:**
-1. User pastes alert text in browser
-2. Browser POSTs to `/api/varo/analyze` (Next.js server-side route — API key never exposed to client)
-3. Server calls `sanitiseAlert()` (prompt injection defence) and wraps in `<alert_content>` delimiters
-4. Server calls Gemini API with `GEMINI_API_KEY` (server-side env var only)
-5. Response parsed, validated by `validateReport()`, returned to browser as JSON
-6. No alert content is logged by Varo AI infrastructure; Gemini processes transiently
 
----
-
-## Section 7 — Deployment
-
-```bash
-npm run build
-firebase deploy --only hosting
-
-# Firestore rules
-firebase deploy --only firestore:rules
+```
+1. User browser  →  Next.js /api/varo/analyze  (HTTPS — API key never in browser)
+2. Next.js       →  Python /tasks/analyze       (internal network — AGENT_BACKEND_URL)
+3. Python        →  sanitise_alert()            (prompt injection defence)
+4. Python        →  Gemini API                  (GEMINI_API_KEY — server env only)
+5. Python        →  validate_report()           (schema + MITRE ID check)
+6. Python        →  Next.js                     (validated JSON)
+7. Next.js       →  browser                     (rendered as incident report)
 ```
 
-See [`architecture.md §7`](../varoai_build_package_v2/varoai_docs/architecture.md) for full deployment commands.
+**What leaves the customer's network:**
+- Alert text → sent to Gemini API (processed transiently, not stored by Google)
+
+**What never leaves Varo AI infrastructure:**
+- User credentials, Firebase tokens, asset inventory files
 
 ---
 
-*References: [`architecture.md`](../varoai_build_package_v2/varoai_docs/architecture.md) · [`ai_rules.md`](../varoai_build_package_v2/varoai_docs/ai_rules.md) · [`SYSTEM_BEHAVIOR.md`](../varoai_build_package_v2/varoai_docs/SYSTEM_BEHAVIOR.md) · [`SECURITY_PRIVACY.md`](../varoai_build_package_v2/varoai_docs/SECURITY_PRIVACY.md)*
+## Section 7 — Running locally
+
+**Agent backend (Python):**
+```bash
+cd agent-backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env     # add GEMINI_API_KEY
+uvicorn main:app --reload --port 8000
+```
+
+**Next.js frontend:**
+```bash
+cp .env.local.example .env.local
+# Set AGENT_BACKEND_URL=http://localhost:8000
+# Set GEMINI_API_KEY (used as fallback if backend is down)
+npm install
+npm run dev
+```
+
+**Deploy (Firebase Hosting + Cloud Run):**
+```bash
+# Deploy agent backend to Cloud Run
+gcloud run deploy varo-agent-backend \
+  --source agent-backend/ \
+  --set-env-vars GEMINI_API_KEY=$GEMINI_API_KEY
+
+# Deploy Next.js frontend
+npm run build
+firebase deploy --only hosting
+```
+
+---
+
+*References: [`ai_rules.md`](../varoai_build_package_v2/varoai_docs/ai_rules.md) · [`SYSTEM_BEHAVIOR.md`](../varoai_build_package_v2/varoai_docs/SYSTEM_BEHAVIOR.md) · [`SECURITY_PRIVACY.md`](../varoai_build_package_v2/varoai_docs/SECURITY_PRIVACY.md)*

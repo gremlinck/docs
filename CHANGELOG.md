@@ -4,6 +4,43 @@ All notable changes to Varo AI are documented here.
 
 ---
 
+## [0.2.0] — 2026-05-28
+
+### Added
+
+**A.G.E.N.T. Loop™ — Python multi-agent backend**
+
+- `agent-backend/` — FastAPI service exposing the five-step reasoning chain
+- `agent-backend/agents/assessor.py` — [A] Assess: protocol identification + anomaly classification (temperature 0.1)
+- `agent-backend/agents/generator.py` — [G] Generate: attack scenario + MITRE ATT&CK for ICS mapping
+- `agent-backend/agents/evaluator.py` — [E] Evaluate: consequence modelling with facility-type downtime rates
+- `agent-backend/agents/navigator.py` — [N] Navigate: ranked response steps + safety gate (`forces_copilot()` at application layer)
+- `agent-backend/agents/translator.py` — [T] Translate: final 12-field IncidentReport assembly
+- `agent-backend/agents/base.py` — ADK-compatible `Agent` base class with A2A agent card
+- `agent-backend/pipeline/agent_loop.py` — `run_agent_loop()` orchestrator; `get_agent_cards()` for A2A registry
+- `agent-backend/main.py` — FastAPI server: `POST /tasks/analyze`, `POST /tasks/copilot`, `GET /.well-known/agent.json` (A2A), `GET /health`
+- `agent-backend/security/sanitise.py` — Python port of `sanitiseAlert`, `validateReport`, `forcesCopilot`
+
+**Next.js routing updated for Phase 2**
+
+- `lib/ai.ts` — `callAgentLoop()` and `callAgentCopilot()` for agent backend; direct Gemini path retained as fallback
+- `app/api/varo/analyze/route.ts` — routes to agent backend when `AGENT_BACKEND_URL` is set; falls back to Phase 1
+- `app/api/varo/copilot/route.ts` — same dual-path routing
+- `.env.local.example` — added `AGENT_BACKEND_URL`
+
+**Documentation expanded**
+
+- `positioning/varo-mythos-positioning.md` — full 13-slide deck: Mythos analogy table, A.G.E.N.T. Loop™ diagram, COPILOT vs AUTOPILOT, CISO data handling Q&A, naming note
+- `architecture/README.md` — updated with actual agent code, data flow diagram for security review, local run + Cloud Run deploy commands
+
+### Architecture decisions
+
+- Agent backend is a separate Python service (not embedded in Next.js) — enables independent scaling, language-appropriate tooling (Python ADK), and clean A2A protocol boundary
+- Phase routing is zero-config: set `AGENT_BACKEND_URL` to activate Phase 2; unset to use Phase 1 direct Gemini
+- Safety gate (`forcesCopilot`) is implemented in both Python (`agent-backend/security/sanitise.py`) and TypeScript (`lib/security.ts`) — belt-and-suspenders at both layers
+
+---
+
 ## [0.1.0] — 2026-05-28
 
 ### Added

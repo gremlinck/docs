@@ -1,4 +1,47 @@
-// Single AI call wrapper — to swap Gemini → Claude at Month 3, change only this function
+// AI engine layer — two modes:
+//   1. AGENT_BACKEND_URL set → calls the Python A.G.E.N.T. Loop™ (Phase 2)
+//   2. Fallback                → direct Gemini call (Phase 1)
+//
+// To swap Gemini → Claude at Month 3, change callVaroAnalystDirect() only.
+
+const AGENT_BACKEND = process.env.AGENT_BACKEND_URL ?? ''
+
+// ── Phase 2: agent backend ───────────────────────────────────────────────────
+
+export async function callAgentLoop(
+  alertText: string,
+  facilityType: string,
+  mode: string
+): Promise<unknown> {
+  const res = await fetch(`${AGENT_BACKEND}/tasks/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alertText, facilityType, mode }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Agent backend error' }))
+    throw new Error((err as { detail?: string }).detail ?? `Agent backend returned ${res.status}`)
+  }
+  const data = await res.json()
+  return data.report
+}
+
+export async function callAgentCopilot(
+  message: string,
+  report: unknown
+): Promise<string> {
+  const res = await fetch(`${AGENT_BACKEND}/tasks/copilot`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, report }),
+  })
+  if (!res.ok) throw new Error('Copilot agent unavailable')
+  const data = await res.json()
+  return (data as { response: string }).response
+}
+
+// ── Phase 1: direct Gemini call — swap point for Claude migration ─────────────
+
 export async function callVaroAnalyst(
   fullPrompt: string,
   temperature = 0.2
@@ -36,7 +79,6 @@ export async function callVaroAnalyst(
   try {
     return JSON.parse(rawText)
   } catch {
-    // Strip markdown code fences and retry — Gemini occasionally wraps output
     const stripped = rawText.replace(/^```(?:json)?\n?|\n?```$/g, '').trim()
     return JSON.parse(stripped)
   }
