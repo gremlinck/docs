@@ -4,17 +4,15 @@ from __future__ import annotations
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Any
 
-from google import genai
-from google.genai import types
+import anthropic
 
 
-def _get_client() -> genai.Client:
-    api_key = os.environ.get('GEMINI_API_KEY')
+def _get_client() -> anthropic.Anthropic:
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
-        raise RuntimeError('GEMINI_API_KEY is not set')
-    return genai.Client(api_key=api_key)
+        raise RuntimeError('ANTHROPIC_API_KEY is not set')
+    return anthropic.Anthropic(api_key=api_key)
 
 
 class Agent(ABC):
@@ -28,7 +26,7 @@ class Agent(ABC):
 
     name: str
     description: str
-    step_label: str          # e.g. "[A] Assess"
+    step_label: str
     temperature: float = 0.2
 
     @property
@@ -38,7 +36,7 @@ class Agent(ABC):
             'name': self.name,
             'description': self.description,
             'step': self.step_label,
-            'model': 'gemini-2.0-flash',
+            'model': 'claude-opus-4-7',
             'inputSchema': 'AgentContext',
             'outputSchema': self.output_schema,
         }
@@ -54,20 +52,16 @@ class Agent(ABC):
         client = _get_client()
         prompt = self.build_prompt(context)
 
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type='application/json',
-                temperature=self.temperature,
-                max_output_tokens=1024,
-            ),
+        msg = client.messages.create(
+            model='claude-opus-4-7',
+            max_tokens=1024,
+            temperature=self.temperature,
+            messages=[{'role': 'user', 'content': prompt}],
         )
 
-        raw = response.text or ''
+        raw = msg.content[0].text if msg.content else ''
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            # Strip markdown fences and retry
             stripped = raw.strip().removeprefix('```json').removeprefix('```').removesuffix('```').strip()
             return json.loads(stripped)

@@ -22,12 +22,12 @@ export async function POST(request: NextRequest) {
       const raw = await callAgentLoop(alertText, facilityType ?? 'energy', mode ?? 'COPILOT')
       report = validateReport(raw)
     } else {
-      // Phase 1 fallback — direct Gemini call
-      if (!process.env.GEMINI_API_KEY) {
+      // Phase 1 fallback — direct Claude call
+      if (!process.env.ANTHROPIC_API_KEY) {
         return NextResponse.json(
           {
             error:
-              'The AI analyst is not configured. Add GEMINI_API_KEY to .env.local or set AGENT_BACKEND_URL to point to the agent backend.',
+              'The AI analyst is not configured. Add ANTHROPIC_API_KEY to .env.local or set AGENT_BACKEND_URL to point to the agent backend.',
           },
           { status: 503 }
         )
