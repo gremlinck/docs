@@ -1,23 +1,29 @@
-# Voramethos
+# Varo Mythos
 
-Varo AI — Phase 1 build session index.
+Reverse-engineering Anthropic's Claude Mythos approach for OT/ICS cybersecurity.
 
-## What was built
+## Thesis
 
-| Deliverable | Path | Description |
-|---|---|---|
-| Phase 1 Prototype | `app/` | Next.js 14 app: alert input → Gemini analysis → 12-field incident report |
-| AI Engine | `lib/ai.ts` | Single `callVaroAnalyst()` wrapper — Gemini 2.0 Flash, swap point for Claude (Month 3) |
-| Security Layer | `lib/security.ts` | `sanitiseAlert()`, `validateReport()`, `forcesCopilot()` |
-| API Routes | `app/api/varo/` | `/analyze` and `/copilot` server-side routes |
-| Components | `components/` | NavBar, SeverityBadge, ResponseStep, CopilotChat, ModeToggle, LoadingBar |
-| Positioning | `varoai_build_package_v2/varoai_docs/PRD.md` | Product requirements and market positioning |
-| Architecture | `varoai_build_package_v2/varoai_docs/architecture.md` | Stack, data model, security rules, AI call pattern |
+Mythos collapses alert-to-exploit time for IT software. Varo AI collapses alert-to-decision time for systems that can't be patched on a Tuesday.
 
-## Branch
+## Contents
 
-`claude/varo-mythos-okZSt`
+- **positioning/** — Dual-audience positioning doc (investors + CISOs)
+- **architecture/** — Technical spec for the chain-aware reasoning layer on Google ADK + A2A, mapped to the A.G.E.N.T. Loop™
+- **prototype/** — Working demo with synthetic OT alert chaining
+
+## How to read this
+
+|If you are                                     |Read                                           |
+|-----------------------------------------------|-----------------------------------------------|
+|An investor                                    |`positioning/varo-mythos-positioning.md`       |
+|A CISO or security buyer                       |Positioning doc + architecture sections 1, 2, 6|
+|An engineer (or technical co-founder candidate)|All of `architecture/` + `prototype/`          |
+
+## Naming note
+
+"Varo Mythos" is the internal working title for this reverse-engineering project — it signals the lineage to Anthropic's April 2026 Mythos announcement. The external product name is **Varo AI** with the **A.G.E.N.T. Loop™** framework. Don't ship the Mythos name publicly; use the analogy as narrative hook only.
 
 ## Status
 
-Phase 1 complete. Phase 2 (Firebase Auth, file upload, Firestore persistence) is next.
+v0.1 — initial drop, May 2026. See `CHANGELOG.md`.
