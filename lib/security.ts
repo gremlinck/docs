@@ -43,7 +43,7 @@ export function validateReport(report: unknown): IncidentReport {
     throw new Error(`Severity score out of range: ${score}`)
   }
 
-  const validated = { ...r } as IncidentReport
+  const validated = { ...r } as unknown as IncidentReport
 
   if (!/^T\d{4}$/.test(validated.mitreId)) {
     validated.mitreId = 'T0000'
