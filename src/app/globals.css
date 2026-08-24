@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-bg text-ink;
+  }
+
+  ::selection {
+    background-color: rgb(27 78 216 / 0.15);
+  }
+}
+
+@layer utilities {
+  /* Staggered section reveal -- add delay via inline style */
+  .section-reveal {
+    opacity: 0;
+    animation: fadeUp 0.4s ease-out forwards;
+  }
+}

@@ -1,61 +1,63 @@
 # Varo AI
 
-**Cyber-Physical Consequence Intelligence for OT/ICS security.**
+**AI-native decision intelligence for OT/ICS cybersecurity. Consultant-grade analysis in 90 seconds.**
 
-Varo AI translates raw industrial control system alerts (Modbus, DNP3, IEC 61850, OPC-UA) into plain-language operational consequence reports with actionable COPILOT response steps — in under 90 seconds.
+## The Thesis
 
----
+OT/ICS organisations pay security consultants $50K--$500K per engagement to translate security findings into plant-level decisions. The consultant applies domain expertise, writes a report, leaves. Knowledge doesn't persist. Next incident, they pay again.
 
-## Deliverables
+Varo replaces this loop. An AI-native platform that ingests the same inputs a senior OT security consultant would, applies the same domain reasoning, and produces decision-grade outputs available 24/7 at SaaS pricing.
 
-| # | Document | Description |
-|---|---|---|
-| 1 | [**Positioning**](varoai_build_package_v2/varoai_docs/PRD.md) | Product vision, user roles, MVP module scope, and out-of-scope boundaries |
-| 2 | [**Architecture**](varoai_build_package_v2/varoai_docs/architecture.md) | Technical stack, Firestore schema, Firebase security rules, and the AI call pattern |
-| 3 | [**Phase 1 Prototype**](app/) | Working Next.js 14 app — alert input → Gemini analysis → 12-field incident report with COPILOT workflow and Engineer Copilot chat |
+The product is **not** detection. Detection exists (Dragos, Claroty, Nozomi). Varo is the advisory layer above detection where consultant-grade judgment lives.
 
----
+## What v0.1 Does
 
-## How to read this
+Paste any OT security scenario. Within 60--90 seconds, Varo returns:
 
-| Audience | Reading path |
+1. **Consequence Analysis** -- physical process impact (safety, availability, productivity)
+2. **Affected Systems** -- assets mapped to Purdue model levels 0--5
+3. **Kill Chain Position** -- ICS Cyber Kill Chain stage (SANS/Dragos 7-stage model)
+4. **Recommended Actions** -- prioritized, safety-gated, human-approval flagged
+5. **Reasoning Trace** -- the analytical chain, auditable and challengeable
+6. **Confidence & Uncertainty** -- certainties vs. assumptions vs. data gaps
+
+## Architecture
+
+All AI calls go through one Genkit flow: `src/genkit/consequence-analysis.ts`. To swap the AI provider, change only the `model` string there.
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| **Investors** | Positioning only → [`PRD.md`](varoai_build_package_v2/varoai_docs/PRD.md) |
-| **CISOs** | Positioning + Architecture §§ 1 (Overview), 2 (Stack), 6 (AI Call Pattern) → [`PRD.md`](varoai_build_package_v2/varoai_docs/PRD.md) · [`architecture.md`](varoai_build_package_v2/varoai_docs/architecture.md) · [`SECURITY_PRIVACY.md`](varoai_build_package_v2/varoai_docs/SECURITY_PRIVACY.md) |
-| **Engineers** | All architecture docs + prototype → [`architecture.md`](varoai_build_package_v2/varoai_docs/architecture.md) · [`system_prompt.md`](varoai_build_package_v2/varoai_docs/system_prompt.md) · [`ai_rules.md`](varoai_build_package_v2/varoai_docs/ai_rules.md) · [`SYSTEM_BEHAVIOR.md`](varoai_build_package_v2/varoai_docs/SYSTEM_BEHAVIOR.md) · [prototype](app/) |
+| Frontend | Next.js 15 + TypeScript + Tailwind CSS |
+| AI Engine | Gemini 2.5 Pro via Genkit |
+| Auth/DB | Firebase (scaffolded, not used in v0.1) |
+| Deployment | Vercel |
 
----
-
-## Quick start (prototype)
+## Running Locally
 
 ```bash
-cp .env.local.example .env.local
-# Add GEMINI_API_KEY from aistudio.google.com
 npm install
+cp .env.example .env.local
+# Add GEMINI_API_KEY from https://aistudio.google.com
 npm run dev
-# Open http://localhost:3000
 ```
 
-Three demo scenarios load automatically on the alert input page (Modbus PLC anomaly, Historian exfiltration, HMI brute force).
+Visit `http://localhost:3000`. Click **Load demo scenario** on `/analyze` to test.
 
----
+## Deploying to Vercel
 
-## Documentation index
+1. Push to GitHub
+2. Import at vercel.com/new
+3. Add `GEMINI_API_KEY` in Vercel environment variables
+4. Deploy
 
-All source-of-truth documents live in [`varoai_build_package_v2/varoai_docs/`](varoai_build_package_v2/varoai_docs/):
+**Note:** `/api/analyze` sets `maxDuration = 90`. Vercel Hobby plan caps at 60s -- use Pro.
 
-| File | Purpose |
-|---|---|
-| [`PRD.md`](varoai_build_package_v2/varoai_docs/PRD.md) | Product requirements, user roles, alert ingestion methods |
-| [`architecture.md`](varoai_build_package_v2/varoai_docs/architecture.md) | Stack, Firestore schema, security rules, AI call pattern |
-| [`system_prompt.md`](varoai_build_package_v2/varoai_docs/system_prompt.md) | Exact system prompts for all 4 AI modules + 3 demo test inputs |
-| [`ai_rules.md`](varoai_build_package_v2/varoai_docs/ai_rules.md) | The 10 non-negotiable AI behaviour rules with code-level enforcement |
-| [`SYSTEM_BEHAVIOR.md`](varoai_build_package_v2/varoai_docs/SYSTEM_BEHAVIOR.md) | Incident state machine, `forcesCopilot()` logic, AUTOPILOT overrides |
-| [`UI_DESIGN.md`](varoai_build_package_v2/varoai_docs/UI_DESIGN.md) | Component specs, layout wireframes, colour palette, typography |
-| [`UX_FLOW.md`](varoai_build_package_v2/varoai_docs/UX_FLOW.md) | Page routes, user flows, navigation map |
-| [`SECURITY_PRIVACY.md`](varoai_build_package_v2/varoai_docs/SECURITY_PRIVACY.md) | Firestore security rules, `sanitiseAlert()`, `validateReport()`, data classification |
-| [`OBSERVABILITY.md`](varoai_build_package_v2/varoai_docs/OBSERVABILITY.md) | Error message copy, audit log schema, performance monitoring |
-| [`THREAT_DATASET.md`](varoai_build_package_v2/varoai_docs/THREAT_DATASET.md) | Synthetic test alerts for all sectors + QA test cases |
-| [`DEMO_STORY.md`](varoai_build_package_v2/varoai_docs/DEMO_STORY.md) | 5-minute demo script, investor Q&A, break-glass fallbacks |
-| [`ROADMAP.md`](varoai_build_package_v2/varoai_docs/ROADMAP.md) | Feature roadmap, AI engine swap plan (Gemini → Claude at Month 3) |
-| [`plan.md`](varoai_build_package_v2/varoai_docs/plan.md) | Build phases, daily prioritisation guidance |
+## v0.1 Scope
+
+**In:** `/` landing, `/analyze` analysis, 6-section AI output via Gemini 2.5 Pro.
+
+**Out:** Auth, multi-tenant, OT sensor integrations, multi-agent, AUTOPILOT, persistence, billing.
+
+See `CLAUDE.md` for architecture decisions.
